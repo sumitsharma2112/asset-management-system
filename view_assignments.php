@@ -1,162 +1,237 @@
+
 <?php
+ob_start(); // Start output buffering
+
 include('config/database.php');
 include('templates/header.php');
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    $category = $_POST['category'];
-    $brand = $_POST['brand'];
-    $model = $_POST['model'];
-    $serial_number = $_POST['serial_number'];
-    $processor = $_POST['processor'];
-    $ownership = $_POST['ownership'];
-    $rent_date = $_POST['rent_date'];
-    $rent_revoke_date = $_POST['rent_revoke_date'];
-    $description = $_POST['description'];
-    $condition = $_POST['condition'];
-    $location = $_POST['location'];
-    $assignedto = $_POST['assignedto'];
-    $usage = $_POST['usage'];
-    $compatibility = $_POST['compatibility'];
-    $purchase_date = $_POST['purchase_date'];
-    $warranty_exp_date = $_POST['warranty_exp_date'];
-    $status = 'unassigned';
-    
+// Handle the deletion of an assignment
+if (isset($_GET['delete_id'])) {
+    $delete_id = $_GET['delete_id'];
+    try {
+        $stmt = $pdo->prepare('DELETE FROM asset_assignments WHERE asset_id = :asset_id');
+        $stmt->execute([':asset_id' => $delete_id]);
+        header("Location: view_assignments.php"); // Redirect to the same page after deletion
+        exit;
+    } catch (PDOException $e) {
+        die("Error deleting asset: " . $e->getMessage());
+    }
+}
 
-    // Handling image upload
-    $image = $_FILES['image']['name'];
-    $image_target = "uploads/images/" . basename($image);
+// Handle the update of an assignment
+if (isset($_POST['update'])) {
+    $asset_id = $_POST['asset_id'];
+    $full_name = $_POST['full_name'];
+    $employee_id = $_POST['employee_id'];
+    $mobile_number = $_POST['mobile_number'];
+    $email_id = $_POST['email_id'];
+    $department = $_POST['department'];
+    $designation = $_POST['designation'];
+    $joining_date = $_POST['joining_date'];
+    $residence_location = $_POST['residence_location'];
+    $gender = $_POST['gender'];
+    $pan_number = $_POST['pan_number'];
 
     try {
-        // Check if serial number already exists
-        $check_stmt = $pdo->prepare("SELECT COUNT(*) FROM assets WHERE serial_number = ?");
-        $check_stmt->execute([$serial_number]);
-        $count = $check_stmt->fetchColumn();
-
-        if ($count > 0) {
-            echo "An asset with this serial number already exists.";
-        } else {
-            // Insert the new asset
-            $stmt = $pdo->prepare("INSERT INTO assets (category, brand, model, serial_number, processor, ownership, rent_date, rent_revoke_date, description, `condition`, location, assignedto, `usage`, `compatibility`, `purchase_date`, `warranty_exp_date`, status, `image`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$category, $brand, $model, $serial_number, $processor, $ownership, $rent_date, $rent_revoke_date, $description, $condition, $location, $assignedto, $usage, $compatibility, $purchase_date, $warranty_exp_date, $status, $image]);
-            
-            
-
-            if (move_uploaded_file($_FILES['image']['tmp_name'], $image_target)) {
-                echo "Asset added successfully!";
-            } else {
-                echo "Failed to upload image.";
-            }
-        }
+        $stmt = $pdo->prepare('UPDATE asset_assignments SET full_name = :full_name, employee_id = :employee_id, mobile_number = :mobile_number, email_id = :email_id, department = :department, designation = :designation, joining_date = :joining_date, residence_location = :residence_location, gender = :gender, pan_number = :pan_number WHERE asset_id = :asset_id');
+        $stmt->execute([
+            ':full_name' => $full_name,
+            ':employee_id' => $employee_id,
+            ':mobile_number' => $mobile_number,
+            ':email_id' => $email_id,
+            ':department' => $department,
+            ':designation' => $designation,
+            ':joining_date' => $joining_date,
+            ':residence_location' => $residence_location,
+            ':gender' => $gender,
+            ':pan_number' => $pan_number,
+            ':asset_id' => $asset_id
+        ]);
+        header("Location: view_assignments.php"); // Redirect to the same page after update
+        exit;
     } catch (PDOException $e) {
-        echo "Error: " . $e->getMessage();
+        die("Error updating asset: " . $e->getMessage());
+    }
+}
+
+// Fetching data from the database
+try {
+    $stmt = $pdo->query('SELECT * FROM asset_assignments');
+    $assets = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Error retrieving assets: " . $e->getMessage());
+}
+
+// Show edit form if `edit_id` is set
+$edit_id = isset($_GET['edit_id']) ? $_GET['edit_id'] : null;
+if ($edit_id) {
+    // Fetch the assignment details for editing
+    try {
+        $stmt = $pdo->prepare('SELECT * FROM asset_assignments WHERE asset_id = :asset_id');
+        $stmt->execute([':asset_id' => $edit_id]);
+        $edit_asset = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        die("Error retrieving asset details: " . $e->getMessage());
     }
 }
 ?>
-<br><br>
-<h2 style="text-align: center;">Add New Asset</h2>
-<form action="add_asset.php" method="post" enctype="multipart/form-data">
-    <label for="category">Category:</label>
-    <select id="category" name="category" required>
-        <option value="Laptop">Laptop</option>
-        <option value="Adapter">Adapter</option>
-        <option value="Hard Disk">Hard Disk</option>
-        <option value="Server">Server</option>
-        <option value="Keyboard">Keyboard</option>
-        <option value="Mouse">Mouse</option>
-        <option value="Monitor">Monitor</option>
-        <option value="CPU">CPU</option>
-        <option value="External Hard disk">External Hard disk</option>
-        <option value="Pendrive">Pendrive</option>
-        <option value="Walkie Talkie">Walkie Talkie</option>
-        <option value="Tab">Tab</option>
-        <option value="Printer">Printer</option>
-        <option value="Extension">Extension</option>
-        <option value="Camera">Camera</option>
-        <option value="Air-Purifier">Air-Purifier</option>
-        <option value="Head-Phone">Head-Phone</option>
-        <option value="Coffee-Meachine">Coffee-Meachine</option>
-        <option value="Microwave">Microwave</option>
-        <option value="Induction">Induction</option>
-    </select>
-    <br>
 
-    <label>Brand:</label>
-    <input type="text" name="brand" required><br>
+<!-- Your HTML content here -->
+ 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Assignments</title>
+    <script>
+        function showEditForm() {
+            document.getElementById('edit-form').style.display = 'block';
+            document.getElementById('view-assignments').style.display = 'none';
+        }
 
-    <label>Model:</label>
-    <input type="text" name="model" required><br>
+        function showViewAssignments() {
+            document.getElementById('edit-form').style.display = 'none';
+            document.getElementById('view-assignments').style.display = 'block';
+        }
+    </script>
+    <style>
+        .btn-download, .btn-update, .btn-delete, .btn-info {
+            display: inline-block;
+            margin: 5px 0;
+            padding: 5px 10px;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 12px;
+        }
 
-    <label>Serial Number:</label>
-    <input type="text" name="serial_number" required><br>
+        .btn-download {
+            background-color: #4CAF50;
+        }
 
-    <label>Processor:</label>
-    <input type="text" name="processor"><br>
+        .btn-download:hover {
+            background-color: #45a049;
+        }
 
-    <label for="ownership">Ownership</label>
-    <select id="ownership" name="ownership" required onchange="toggleRentFields()">
-        <option value="owner">Company owned</option>
-        <option value="rented">Rented</option>
-    </select>
-<br>
+        .btn-update {
+            background-color: #FFA500;
+        }
 
-        <div id="conditionalFields" class="conditional-fields">
-            <label>Rent Date:</label>
-            <input type="date" name="rent_date"><br>
+        .btn-update:hover {
+            background-color: #FF8C00;
+        }
 
-            <label>Rent Revoke Date:</label>
-            <input type="date" name="rent_revoke_date"><br>
-        </div>
+        .btn-delete {
+            background-color: #FF0000;
+        }
 
-    <label>Asset-Description:</label>
-    <input type="text" name="description"><br>
+        .btn-delete:hover {
+            background-color: #DC143C;
+        }
 
-    <label>Condition:</label>
-    <input type="text" name="condition"><br>
+        .btn-info {
+            background-color: #1E90FF;
+        }
 
-    <label>Location:</label>
-    <input type="text" name="location"><br>
-
-    <label>Assigned-To:</label>
-    <input type="text" name="assignedto"><br>
-
-    <label>Usage:</label>
-    <input type="text" name="usage"><br>
-
-    <label>Compatibility:</label>
-    <input type="text" name="compatibility"><br>
-
-    <label>Purchase Date:</label>
-    <input type="date" name="purchase_date"><br>
-
-    <label>Warranty Expiry Date:</label>
-    <input type="date" name="warranty_exp_date"><br>
-
-    <label>Image:</label>
-    <input type="file" accept="image/png, image/jpeg, image/jpg," name="image" required><br>
-
-    <input type="submit" value="Add Asset">
-</form>
-<style>
-        .conditional-fields {
-            display: none;
-            margin-top: 10px;
+        .btn-info:hover {
+            background-color: #4682B4;
         }
     </style>
-<script>
-        function toggleRentFields() {
-            var ownership = document.getElementById('ownership').value;
-            var conditionalFields = document.getElementById('conditionalFields');
+</head>
+<body>
+    <br><br>
+    <h2 style="text-align: center;">View Assignments</h2>
 
-            if (ownership === 'rented') {
-                conditionalFields.style.display = 'block';
-            } else {
-                conditionalFields.style.display = 'none';
-            }
-        }
+    <!-- Print and Download buttons -->
+    <div style="text-align: center;">
+        <form method="post">
+            <button type="submit" name="download_excel" class="btn-download">Download Excel</button>
+        </form>
+        <button class="btn-info" onclick="window.print()">Print</button>
+    </div>
 
-        // Initial call to set the correct visibility on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            toggleRentFields();
-        });
+    <!-- Edit Form -->
+    <div id="edit-form" style="display: <?php echo $edit_id ? 'block' : 'none'; ?>;">
+        <h3 style="text-align: center;">Edit Assignment</h3>
+        <form method="post">
+            <input type="hidden" name="asset_id" value="<?php echo htmlspecialchars($edit_asset['asset_id']); ?>">
+            <label for="full_name">Name:</label>
+            <input type="text" id="full_name" name="full_name" value="<?php echo htmlspecialchars($edit_asset['full_name']); ?>" required><br><br>
+            <label for="employee_id">Employee ID:</label>
+            <input type="text" id="employee_id" name="employee_id" value="<?php echo htmlspecialchars($edit_asset['employee_id']); ?>" required><br><br>
+            <label for="mobile_number">Mobile Number:</label>
+            <input type="text" id="mobile_number" name="mobile_number" value="<?php echo htmlspecialchars($edit_asset['mobile_number']); ?>" required><br><br>
+            <label for="email_id">Email Id:</label>
+            <input type="email" id="email_id" name="email_id" value="<?php echo htmlspecialchars($edit_asset['email_id']); ?>" required><br><br>
+            <label for="department">Department:</label>
+            <input type="text" id="department" name="department" value="<?php echo htmlspecialchars($edit_asset['department']); ?>" required><br><br>
+            <label for="designation">Designation:</label>
+            <input type="text" id="designation" name="designation" value="<?php echo htmlspecialchars($edit_asset['designation']); ?>" required><br><br>
+            <label for="joining_date">Date Of Joining:</label>
+            <input type="date" id="joining_date" name="joining_date" value="<?php echo htmlspecialchars($edit_asset['joining_date']); ?>" required><br><br>
+            <label for="residence_location">Residence Location:</label>
+            <input type="text" id="residence_location" name="residence_location" value="<?php echo htmlspecialchars($edit_asset['residence_location']); ?>" required><br><br>
+            <label for="gender">Gender:</label>
+            <select id="gender" name="gender" required>
+                <option value="Male" <?php if ($edit_asset['gender'] == 'Male') echo 'selected'; ?>>Male</option>
+                <option value="Female" <?php if ($edit_asset['gender'] == 'Female') echo 'selected'; ?>>Female</option>
+            </select><br><br>
+            <label for="pan_number">PAN Number:</label>
+            <input type="text" id="pan_number" name="pan_number" value="<?php echo htmlspecialchars($edit_asset['pan_number']); ?>" required><br><br>
+            <button type="submit" name="update" class="btn-update">Update</button>
+            <button type="button" onclick="showViewAssignments()" class="btn-info">Cancel</button>
+        </form>
+        <br><br>
+    </div>
 
-    </script>
+    <!-- View Assignments Table -->
+    <div id="view-assignments" style="display: <?php echo $edit_id ? 'none' : 'block'; ?>;">
+        <?php if (!empty($assets)): ?>
+            <table border="1" style="width: 100%; margin-top: 20px;">
+                <tr>
+                    <th>Asset ID</th>
+                    <th>Name</th>
+                    <th>Employee ID</th>
+                    <th>Mobile Number</th>
+                    <th>Email Id</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Date Of Joining</th>
+                    <th>Residence Location</th>
+                    <th>Gender</th>
+                    <th>PAN Number</th>
+                    <th>Actions</th>
+                </tr>
+                <?php foreach ($assets as $asset): ?>
+                <tr>
+                    <td><?php echo htmlspecialchars($asset['asset_id']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['full_name']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['employee_id']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['mobile_number']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['email_id']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['department']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['designation']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['joining_date']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['residence_location']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['gender']); ?></td>
+                    <td><?php echo htmlspecialchars($asset['pan_number']); ?></td>
+                    <td>
+                        <!-- Edit Button for Individual Asset -->
+                        <button onclick="showEditForm(); window.location.href='?edit_id=<?php echo urlencode($asset['asset_id']); ?>'" class="btn-update">Edit</button>
+
+                        <!-- Delete Button for Individual Asset -->
+                        <a href="?delete_id=<?php echo urlencode($asset['asset_id']); ?>" class="btn-delete" onclick="return confirm('Are you sure you want to delete this assignment?');">Delete</a>
+                    </td>
+                </tr>
+                <?php endforeach; ?>
+            </table>
+        <?php else: ?>
+            <p>No assets found.</p>
+        <?php endif; ?>
+    </div>
+</body>
+</html>
+
+<?php
+ob_end_flush(); // End output buffering and flush the output
+?>
